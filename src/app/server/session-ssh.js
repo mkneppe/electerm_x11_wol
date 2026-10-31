@@ -137,7 +137,10 @@ class TerminalSshBase extends TerminalBase {
     } = this
     const hasX11 = initOptions.x11 === true
     this.display = hasX11 ? await this.getDisplay() : undefined
-    this.x11Cookie = hasX11 ? await this.getX11Cookie() : undefined
+    // electerm-managed x server (app/lib/x11-server.js): its cookie and port
+    this.x11Cookie = hasX11
+      ? initOptions.x11Cookie || await this.getX11Cookie()
+      : undefined
     if (hasX11) {
       // runs in the background: never delay the connection for a probe
       this.checkX11().catch(e => log.error('x11 check error', e))
@@ -150,7 +153,12 @@ class TerminalSshBase extends TerminalBase {
    * so probe the display once per session and tell the user what to do
    */
   async checkX11 () {
-    const ok = await probeXServer(getX11Candidates(this.display))
+    const { x11Port } = this.initOptions
+    const ok = await probeXServer(
+      x11Port
+        ? [{ port: x11Port, host: '127.0.0.1' }]
+        : getX11Candidates(this.display)
+    )
     if (!ok) {
       return this.notifyX11(x11Hint())
     }
@@ -956,10 +964,12 @@ class TerminalSshBase extends TerminalBase {
       })
       if (!skipX11) {
         conn.on('x11', (inf, accept) => {
-          let start = 0
+          const { x11Port } = initOptions
+          let start = x11Port || 0
           const maxRetry = 100
           const portStart = 6000
-          const maxPort = portStart + maxRetry
+          // a managed x server: its port only, never a different server
+          const maxPort = x11Port ? x11Port + 1 : portStart + maxRetry
           const retry = () => {
             if (start >= maxPort) {
               // every local x endpoint refused us, the remote app is stuck

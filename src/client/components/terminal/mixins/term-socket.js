@@ -28,6 +28,8 @@ import {
   clearNeedsInteractiveInput
 } from '../interactive-prompt-state.js'
 import { decideSessionEnd } from '../session-end.js'
+import { notification } from '../../common/notification'
+import { ensureX11Server } from '../../../common/x11-server.jsx'
 
 // Expands \n \t \r \\ and \xHH hex byte escapes, used to let users type
 // control bytes (e.g. \x01 = Ctrl+A) in the serial "closeSequence" field.
@@ -167,6 +169,28 @@ export const socketMixin = {
     // Renderer-only state can contain a large serialized screen and must not
     // cross the process boundary as part of the SSH connection options.
     delete opts._reloadState
+    // only set below, never taken from a (possibly imported) bookmark
+    delete opts.x11Port
+    delete opts.x11Cookie
+    if (opts.x11 === true && isWin && config.x11Server && config.x11Server !== 'external') {
+      // electerm-managed x server (WSLg/VcXsrv), shared by all tabs, only
+      // accepts clients with its cookie, the session hands it to the remote;
+      // a taken port asks the user first
+      const x = await ensureX11Server()
+      if (x?.port) {
+        opts.x11Port = x.port
+        opts.x11Cookie = x.cookie
+      } else if (x?.declined) {
+        // without X11, the user chose so
+        opts.x11 = false
+      } else if (x && !x.ok) {
+        notification.warning({
+          message: 'X11 server (' + config.x11Server + ')',
+          description: x.error,
+          duration: 30
+        })
+      }
+    }
     // ssh bookmark without saved password: user name and password from a
     // password manager widget
     this.credentials = null

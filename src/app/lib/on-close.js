@@ -5,6 +5,7 @@
 const { dbAction } = require('./db')
 const log = require('../common/log')
 const globalState = require('./glob-state')
+const { stopX11Server } = require('./x11-server')
 
 exports.getExitStatus = async () => {
   const res = await dbAction('data', 'findOne', {
@@ -25,6 +26,7 @@ exports.onClose = async function (e) {
     return e.preventDefault()
   }
   log.debug('Closing app')
+  stopX11Server()
   const childPid = globalState.get('childPid')
   childPid && process.kill(childPid)
   globalState.set('serverInited', false)

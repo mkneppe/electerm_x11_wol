@@ -6,6 +6,7 @@ import { PureComponent } from 'react'
 import {
   Popover
 } from 'antd'
+import { showX11Auth } from '../../common/x11-auth.jsx'
 import logoSvg from '@electerm/electerm-resource/res/imgs/electerm.svg?raw'
 import { shortcutDescExtend } from '../shortcuts/shortcut-handler.js'
 import MenuRender from './sys-menu.jsx'
@@ -59,6 +60,10 @@ class MenuBtn extends PureComponent {
 
   maximize = () => {
     window.pre.runGlobalAsync('maximize')
+  }
+
+  showX11Auth = () => {
+    showX11Auth()
   }
 
   reload = () => {
@@ -142,6 +147,15 @@ class MenuBtn extends PureComponent {
         icon: 'SettingOutlined',
         text: e('settings')
       },
+      // x server managed by electerm, see app/lib/x11-server.js
+      ...(['wslg', 'vcxsrv'].includes(window.store.config.x11Server)
+        ? [{
+            key: 'showX11Auth',
+            func: 'showX11Auth',
+            icon: 'DesktopOutlined',
+            text: 'X11 authority'
+          }]
+        : []),
       {
         key: 'openDevTools',
         func: 'openDevTools',

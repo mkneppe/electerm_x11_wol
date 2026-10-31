@@ -19,6 +19,7 @@ const { listItermThemes } = require('./iterm-theme')
 const installSrc = require('./install-src')
 const { getConfig } = require('./get-config')
 const loadSshConfig = require('./ssh-config')
+const { ensureX11Server } = require('./x11-server')
 const {
   listWidgets,
   runWidget,
@@ -243,6 +244,7 @@ function initIpc () {
     checkPassword,
     lookup,
     loadSshConfig,
+    ensureX11Server,
     init,
     listSerialPorts,
     loadFontList,

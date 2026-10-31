@@ -19,7 +19,8 @@ import {
   rendererTypes,
   regexHelpLink,
   terminalTypes,
-  toggleWikiMap
+  toggleWikiMap,
+  isWin
 } from '../../common/constants'
 import defaultSettings from '../../common/default-setting'
 import ShowItem from '../common/show-item'
@@ -259,6 +260,41 @@ export default class SettingTerminal extends Component {
           placeholder={placeholder || defaultValue}
         />
       </div>
+    )
+  }
+
+  renderX11Server = () => {
+    const { x11Server = 'external' } = this.props.config
+    const labels = {
+      external: 'External (started by yourself)',
+      wslg: 'WSLg (bridged by electerm, no install needed)',
+      vcxsrv: 'VcXsrv (started by electerm)'
+    }
+    return (
+      <>
+        <div className='pd1b'>X11 server</div>
+        <div className='pd2b'>
+          <Select
+            onChange={v => this.onChangeValue(v, 'x11Server')}
+            value={x11Server}
+            popupMatchSelectWidth={false}
+          >
+            {Object.keys(labels).map(id => (
+              <Option key={id} value={id}>{labels[id]}</Option>
+            ))}
+          </Select>
+        </div>
+        {
+          x11Server !== 'external'
+            ? this.renderNumber('x11Port', { min: 6000, max: 6099 }, 'Port (6000 + display)', 240)
+            : null
+        }
+        {
+          x11Server === 'vcxsrv'
+            ? this.renderText('x11VcxsrvPath', 'C:\\Program Files\\VcXsrv\\vcxsrv.exe')
+            : null
+        }
+      </>
     )
   }
 
@@ -632,6 +668,7 @@ export default class SettingTerminal extends Component {
             })
           }
         </Select>
+        {isWin ? this.renderX11Server() : null}
         {this.renderReset()}
       </div>
     )

@@ -42,6 +42,10 @@ module.exports = exports.default = {
   autoRefreshWhenSwitchToSftp: false,
   addTimeStampToTermLog: false,
   keepaliveInterval: 10000,
+  // windows: external | wslg | vcxsrv, see app/lib/x11-server.js
+  x11Server: 'external',
+  x11Port: 6000,
+  x11VcxsrvPath: '',
   backspaceMode: '^?',
   shiftEnterMode: '\\n',
   showHiddenFilesOnSftpStart: true,

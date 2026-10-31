@@ -105,7 +105,7 @@ function x11Hint (platform = process.platform) {
     return 'X11 forwarding is on, but no local X server was found. Install and start XQuartz (https://www.xquartz.org), log out and back in so DISPLAY is set, then reconnect.'
   }
   if (platform === 'win32') {
-    return 'X11 forwarding is on, but no local X server was found. Start VcXsrv (or Xming) with XLaunch on display number 0, keep "Disable access control" checked, make sure it listens on 127.0.0.1:6000, then reconnect.'
+    return 'X11 forwarding is on, but no local X server was found. Start VcXsrv (or Xming) with XLaunch on display number 0, keep "Disable access control" checked, make sure it listens on 127.0.0.1:6000, then reconnect. Or let electerm start WSLg or VcXsrv: Settings > Terminal > X11 server.'
   }
   return 'X11 forwarding is on, but no local X server was found. Start your X session (or install an X server and xauth), then reconnect.'
 }
