@@ -87,6 +87,7 @@ const {
 } = require('./install-command')
 const { watchFile, unwatchFile } = require('./watch-file')
 const lookup = require('../common/lookup')
+const { wakeOnLan, lookupMac } = require('./wol')
 const {
   AIchat,
   AIchatWithTools,
@@ -259,6 +260,8 @@ function initIpc () {
     safeDecrypt: (str) => safeDecrypt(str),
     dbAction,
     getScreenSize,
+    wakeOnLan,
+    lookupMac,
     closeApp: (closeAction = '') => {
       globalState.set('closeAction', closeAction)
       const win = globalState.get('win')

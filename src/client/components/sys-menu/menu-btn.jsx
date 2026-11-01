@@ -10,6 +10,7 @@ import logoSvg from '@electerm/electerm-resource/res/imgs/electerm.svg?raw'
 import { shortcutDescExtend } from '../shortcuts/shortcut-handler.js'
 import MenuRender from './sys-menu.jsx'
 import { refsStatic } from '../common/ref.js'
+import { openWakeOnLanDialog } from '../../common/wake-on-lan.jsx'
 
 const e = window.translate
 
@@ -47,6 +48,10 @@ class MenuBtn extends PureComponent {
 
   openSetting = () => {
     window.store.openSetting()
+  }
+
+  wakeOnLan = () => {
+    openWakeOnLanDialog()
   }
 
   openDevTools = () => {
@@ -131,6 +136,12 @@ class MenuBtn extends PureComponent {
       //   type: 'hr'
       // },
       {
+        key: 'wakeOnLan',
+        func: 'wakeOnLan',
+        icon: 'PoweroffOutlined',
+        text: 'Wake on LAN'
+      },
+      {
         key: 'openAbout',
         func: 'openAbout',
         icon: 'InfoCircleOutlined',
@@ -204,7 +215,7 @@ class MenuBtn extends PureComponent {
   // Only show menus listed in window.et.sysMenus, when it is defined,
   // eg: window.et.sysMenus = ['onNewSsh', 'bookmarks', 'openSetting', 'close']
   // available keys: onNewSsh, addTab, bookmarks, history, sessions, layout,
-  // openAbout, openSetting, openDevTools, zoom, minimize, maximize, reload,
+  // wakeOnLan, openAbout, openSetting, openDevTools, zoom, minimize, maximize, reload,
   // onCheckUpdate, restart, close
   filterMenus = (items) => {
     const { sysMenus } = window.et || {}

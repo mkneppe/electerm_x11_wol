@@ -4,6 +4,7 @@ import {
   EditOutlined,
   FolderAddOutlined,
   FolderOpenOutlined,
+  PoweroffOutlined,
   RightSquareOutlined
 } from '@ant-design/icons'
 import {
@@ -14,6 +15,7 @@ import { useState } from 'react'
 import {
   defaultBookmarkGroupId
 } from '../../common/constants'
+import { wakeOnLan } from '../../common/wake-on-lan'
 
 const e = window.translate
 
@@ -99,6 +101,20 @@ export default function TreeItemOp (props) {
         title={e('duplicate')}
         className='pointer tree-control-btn'
         onClick={handleDuplicateItem}
+      />
+    )
+  }
+
+  if (!isGroup && item.wolMac) {
+    buttons.push(
+      <PoweroffOutlined
+        key='wol-tree'
+        title='Wake on LAN'
+        className='pointer tree-control-btn'
+        onClick={(event) => {
+          event.stopPropagation()
+          wakeOnLan(item)
+        }}
       />
     )
   }

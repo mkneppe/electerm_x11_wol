@@ -35,6 +35,8 @@ const rdpConfig = {
         commonFields.username,
         commonFields.password,
         commonFields.description,
+        commonFields.wolMac,
+        commonFields.wolBroadcast,
         { type: 'input', name: 'domain', label: () => e('domain') },
         commonFields.proxy,
         commonFields.type

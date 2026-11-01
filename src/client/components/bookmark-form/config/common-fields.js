@@ -100,6 +100,28 @@ export const commonFields = {
     label: () => e('description')
   },
 
+  wolMac: {
+    type: 'input',
+    name: 'wolMac',
+    label: 'Wake-on-LAN MAC',
+    rules: [{
+      pattern: /^([0-9a-f]{2}[:-]?){5}[0-9a-f]{2}$/i,
+      message: 'aa:bb:cc:dd:ee:ff'
+    }],
+    props: {
+      placeholder: 'aa:bb:cc:dd:ee:ff'
+    }
+  },
+
+  wolBroadcast: {
+    type: 'input',
+    name: 'wolBroadcast',
+    label: 'Wake-on-LAN broadcast',
+    props: {
+      placeholder: 'optional, e.g. 192.168.1.255'
+    }
+  },
+
   category: {
     type: 'categorySelect',
     name: 'category',
@@ -352,6 +374,8 @@ export const sshAuthFields = [
   { type: 'switch', name: 'isMFA', label: () => e('MFA/OTP'), valuePropName: 'checked' },
   commonFields.runScripts,
   commonFields.description,
+  commonFields.wolMac,
+  commonFields.wolBroadcast,
   commonFields.setEnv,
   commonFields.startDirectoryLocal,
   commonFields.startDirectory,

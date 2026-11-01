@@ -41,6 +41,8 @@ const vncConfig = {
         commonFields.username,
         commonFields.password,
         commonFields.description,
+        commonFields.wolMac,
+        commonFields.wolBroadcast,
         commonFields.proxy,
         commonFields.type
       ]

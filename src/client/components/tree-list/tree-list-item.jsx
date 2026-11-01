@@ -3,6 +3,9 @@
  */
 
 import { memo } from 'react'
+import { Dropdown } from 'antd'
+import Modal from '../common/modal'
+import { wakeBookmark } from '../../common/wake-on-lan'
 import { createTitleTag } from '../../common/create-title'
 import classnames from 'classnames'
 import highlight from '../common/highlight'
@@ -27,6 +30,50 @@ function areEqual (prevProps, nextProps) {
     prevProps.itemDescription === nextProps.itemDescription &&
     prevProps.itemLabel === nextProps.itemLabel &&
     prevProps.itemPath === nextProps.itemPath
+}
+
+const e = window.translate
+
+/**
+ * right click menu of a bookmark, the actions of the hover icons
+ * (tree-item-op.jsx). Also in the sidebar list, where the icons only edit:
+ * that is the list people work with every day
+ * @return {{key: string, label: string, onClick: function}[]}
+ */
+function bookmarkMenuItems (props) {
+  const { item } = props
+  return [{
+    key: 'edit',
+    label: e('edit'),
+    onClick: ev => props.editItem(ev, item, false)
+  }, {
+    key: 'duplicate',
+    label: e('duplicate'),
+    onClick: ev => props.duplicateItem(ev, item)
+  }, {
+    key: 'move',
+    label: e('moveTo'),
+    onClick: ev => props.openMoveModal(ev, item, false)
+  }, {
+    key: 'del',
+    label: e('del'),
+    danger: true,
+    onClick: ev => {
+      ev.stopPropagation()
+      Modal.confirm({
+        title: e('del') + '?',
+        content: props.itemLabel,
+        okText: e('del'),
+        cancelText: e('cancel'),
+        onOk: () => props.del(item, { stopPropagation () {} })
+      })
+    }
+  }, {
+    // asks for the MAC when the bookmark has none, see wake-on-lan.jsx
+    key: 'wol',
+    label: 'Wake on LAN',
+    onClick: () => wakeBookmark(item.id)
+  }]
 }
 
 function TreeListItem (props) {
@@ -122,16 +169,39 @@ function TreeListItem (props) {
     'data-parent-id': props.parentId
   }
   const key = item.id || uid()
+  const titleElem = (
+    <div
+      {...titleProps}
+    >
+      {depthMark}{colorTag}{tag}{titleHighlight}
+    </div>
+  )
+  if (isGroup || !item.id) {
+    return (
+      <div
+        {...propsAll}
+        key={key}
+      >
+        {titleElem}
+      </div>
+    )
+  }
+  // built on open: the item prop is memoized and may be stale
+  const menu = {
+    items: bookmarkMenuItems(props).map(({ onClick, ...rest }) => rest),
+    onClick: ({ key, domEvent }) => {
+      domEvent.stopPropagation()
+      bookmarkMenuItems(props).find(i => i.key === key)?.onClick(domEvent)
+    }
+  }
   return (
     <div
       {...propsAll}
       key={key}
     >
-      <div
-        {...titleProps}
-      >
-        {depthMark}{colorTag}{tag}{titleHighlight}
-      </div>
+      <Dropdown menu={menu} trigger={['contextMenu']}>
+        {titleElem}
+      </Dropdown>
     </div>
   )
 }

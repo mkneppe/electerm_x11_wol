@@ -31,7 +31,8 @@ import {
   DownloadOutlined,
   SwapOutlined,
   PushpinOutlined,
-  PushpinFilled
+  PushpinFilled,
+  PoweroffOutlined
 } from '@ant-design/icons'
 import IconHolder from './icon-holder'
 
@@ -66,5 +67,6 @@ export default {
   DownloadOutlined,
   SwapOutlined,
   PushpinOutlined,
-  PushpinFilled
+  PushpinFilled,
+  PoweroffOutlined
 }
