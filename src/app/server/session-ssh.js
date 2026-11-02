@@ -483,6 +483,9 @@ class TerminalSshBase extends TerminalBase {
   }
 
   async getPrivateKeysInJumpServer (conn) {
+    if (!this.tryDefaultKeys()) {
+      return []
+    }
     const r = await this.runCmd('ls ~/.ssh', conn)
       .catch(err => {
         log.error(err)
@@ -824,7 +827,17 @@ class TerminalSshBase extends TerminalBase {
     })
   }
 
+  // Setting "Try keys from ~/.ssh": off, only the key, password or agent the
+  // bookmark names are used, never whatever keys happen to be in ~/.ssh
+  // (locally, or on a jump host).
+  tryDefaultKeys () {
+    return this.initOptions.sshTryDefaultKeys !== false
+  }
+
   getSSHKeys () {
+    if (!this.tryDefaultKeys()) {
+      return []
+    }
     const { sshKeysPath } = process.env
     try {
       return require('fs')

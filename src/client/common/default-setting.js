@@ -88,6 +88,9 @@ export default {
   sshSftpSplitView: false,
   showCmdSuggestions: false,
   autoReconnectTerminal: false,
+  // off: ssh uses only the key / password / agent of the bookmark, no keys
+  // found in ~/.ssh
+  sshTryDefaultKeys: true,
   restoreTerminalSessionOnReload: false,
   startDirectoryLocal: '',
   allowMultiInstance: false,

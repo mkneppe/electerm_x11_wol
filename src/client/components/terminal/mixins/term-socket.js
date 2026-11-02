@@ -150,7 +150,8 @@ export const socketMixin = {
         'addTimeStampToTermLog',
         'keepaliveCountMax',
         'keyword2FA',
-        'debug'
+        'debug',
+        'sshTryDefaultKeys'
       ]),
       keepaliveInterval,
       tabId: id,

@@ -800,6 +800,7 @@ export default class Sftp extends Component {
           readyTimeout: config.sshReadyTimeout,
           terminalId: this.terminalId,
           keepaliveInterval: config.keepaliveInterval,
+          sshTryDefaultKeys: config.sshTryDefaultKeys,
           proxy: getProxy(tab, config),
           ...sessionOptions
         })

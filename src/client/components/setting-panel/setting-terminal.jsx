@@ -598,6 +598,10 @@ export default class SettingTerminal extends Component {
           // label differs from the config key
           this.renderToggle('remoteMonitorBarEnabled', 'pd2b', e('monitorBar'))
         }
+        {
+          // off: only the key / password / agent set in the bookmark
+          this.renderToggle('sshTryDefaultKeys', 'pd2b', 'Try SSH keys from ~/.ssh when the bookmark has none')
+        }
         <div className='pd1b'>{e('rightClickBehavior')}</div>
         <Select
           onChange={this.handleChangeRightClickBehavior}
