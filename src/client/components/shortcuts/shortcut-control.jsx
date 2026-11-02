@@ -175,6 +175,16 @@ class ShortcutControl extends React.PureComponent {
     window.store.clickNextTab()
   }, 500)
 
+  switchToTabShortcut = (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const n = parseInt((e.code || '').replace(/^(Digit|Numpad)/, ''), 10) ||
+      parseInt(e.key, 10)
+    if (n >= 1 && n <= 9) {
+      window.store.clickTabByNumber(n)
+    }
+  }
+
   newBookmarkShortcut = throttle((e) => {
     e.stopPropagation()
     window.store.onNewSsh()

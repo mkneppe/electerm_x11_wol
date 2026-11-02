@@ -78,6 +78,14 @@ export default () => {
       shortcutMac: 'ctrl+tab'
     },
     {
+      // 1-8: that tab of the current layout part, 9: the last one (#1950).
+      // Not ctrl: ctrl+2 is the default global hotkey (show / hide electerm),
+      // and ctrl+alt is AltGr on many keyboards ({ [ ] } on German ones)
+      name: 'app_switchToTab',
+      shortcut: 'alt+1,alt+2,alt+3,alt+4,alt+5,alt+6,alt+7,alt+8,alt+9',
+      shortcutMac: 'meta+1,meta+2,meta+3,meta+4,meta+5,meta+6,meta+7,meta+8,meta+9'
+    },
+    {
       name: 'terminal_clear',
       shortcut: 'ctrl+l,ctrl+shift+l',
       shortcutMac: 'meta+l'

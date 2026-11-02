@@ -455,6 +455,20 @@ export default Store => {
     window.store.clickBioTab(-1)
   }, 100)
 
+  // n = 1..8: the n-th tab of the current layout part, 9: its last tab
+  Store.prototype.clickTabByNumber = function (n) {
+    const { store } = window
+    const { tabs, activeTabId } = store
+    const current = tabs.find(t => t.id === activeTabId)
+    const batch = current ? current.batch : store.currentLayoutBatch
+    const list = tabs.filter(t => t.batch === batch)
+    const tab = n === 9 ? list[list.length - 1] : list[n - 1]
+    if (tab && tab.id !== activeTabId) {
+      store.activeTabId = tab.id
+      store[`activeTabId${batch}`] = tab.id
+    }
+  }
+
   Store.prototype.clickBioTab = function (diff) {
     const { store } = window
     const { tabs, activeTabId } = store

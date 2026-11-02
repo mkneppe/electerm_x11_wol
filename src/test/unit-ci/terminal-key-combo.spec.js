@@ -98,3 +98,32 @@ describe('isAltBufferPasteCombo', () => {
     assert.equal(isAltBufferPasteCombo('meta+v', 'meta+v', true), true)
   })
 })
+
+describe('switch to tab by number (#1950)', () => {
+  test('alt+1 .. alt+9 (cmd on macOS) are the default shortcut', async () => {
+    const { getKeyCombo, matchesShortcut } = await load()
+    const defaults = (await import(
+      '../../client/components/shortcuts/shortcuts-defaults.js'
+    )).default()
+    const def = defaults.find(d => d.name === 'app_switchToTab')
+    for (let i = 1; i <= 9; i++) {
+      const code = 'Digit' + i
+      assert.equal(matchesShortcut(getKeyCombo(key({ code, altKey: true })), def.shortcut), true)
+      assert.equal(matchesShortcut(getKeyCombo(key({ code, metaKey: true })), def.shortcutMac), true)
+    }
+    assert.equal(matchesShortcut(getKeyCombo(key({ code: 'Digit0', altKey: true })), def.shortcut), false)
+  })
+
+  test('no other default shortcut uses alt+digit, and not the global hotkey', async () => {
+    const defaults = (await import(
+      '../../client/components/shortcuts/shortcuts-defaults.js'
+    )).default()
+    const others = defaults
+      .filter(d => d.name !== 'app_switchToTab')
+      .flatMap(d => (d.shortcut || '').split(','))
+    assert.equal(others.some(s => /^alt\+\d$/.test(s)), false)
+    const def = defaults.find(d => d.name === 'app_switchToTab')
+    // the default global hotkey "Control+2" (setting `hotkey`) is taken by Windows first
+    assert.equal(def.shortcut.split(',').includes('ctrl+2'), false)
+  })
+})
