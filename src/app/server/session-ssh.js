@@ -235,7 +235,10 @@ class TerminalSshBase extends TerminalBase {
       return allowedSet.has(type)
     }
 
-    return (authsLeft, partialSuccess) => {
+    // keys from ~/.ssh still to offer for a step that needs a key, see below
+    let defaultKeys = null
+
+    return (authsLeft, partialSuccess, next) => {
       if (partialSuccess) {
         this.authPartiallySucceeded = true
         attemptedMethods = new Set()
@@ -250,6 +253,42 @@ class TerminalSshBase extends TerminalBase {
       })
 
       if (!nextAuth) {
+        // A server that wants two steps (sshd AuthenticationMethods
+        // publickey,password, #3827) says "partial success" after the first
+        // one. Without this the login failed whenever the bookmark lacked
+        // what the other step needs.
+        // A key is needed and the server offers no password: try the keys
+        // from ~/.ssh, as for a bookmark without password.
+        if (
+          allowedSet.has('publickey') &&
+          !allowedSet.has('password') &&
+          connectOptions.privateKey === undefined &&
+          !this.sshKeys
+        ) {
+          defaultKeys = defaultKeys || this.getSSHKeys()
+          while (defaultKeys.length) {
+            const keyPath = defaultKeys.shift()
+            try {
+              return {
+                type: 'publickey',
+                username: connectOptions.username,
+                key: require('fs').readFileSync(keyPath, 'utf8')
+              }
+            } catch (e) {
+              log.warn('cannot read ssh key', keyPath, e.message)
+            }
+          }
+        }
+        // The first step is done and the next one wants a password the
+        // bookmark does not have: ask for it, on this connection.
+        if (
+          this.authPartiallySucceeded &&
+          allowedSet.has('password') &&
+          !connectOptions.password
+        ) {
+          this.askPasswordForNextStep(connectOptions, next)
+          return undefined
+        }
         return false
       }
 
@@ -259,6 +298,29 @@ class TerminalSshBase extends TerminalBase {
       attemptedMethods.add(nextAuth)
       return nextAuth
     }
+  }
+
+  askPasswordForNextStep (connectOptions, next) {
+    const { username } = connectOptions
+    const options = {
+      name: `password for ${username}@${this.initOptions.host}`,
+      instructions: ['The server asks for a password as next step.'],
+      prompts: [{
+        echo: false,
+        prompt: 'password'
+      }]
+    }
+    this.onKeyboardEvent(options, undefined, this.conn, true)
+      .then(data => {
+        const password = data && data[0]
+        if (!password) {
+          return next(false)
+        }
+        connectOptions.password = password
+        this.passwordAuthAttempted = true
+        next({ type: 'password', username, password })
+      })
+      .catch(() => next(false))
   }
 
   adjustConnectionOrder () {
