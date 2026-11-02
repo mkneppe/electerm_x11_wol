@@ -1129,15 +1129,18 @@ class TerminalSshBase extends TerminalBase {
   }
 
   getUserName (connectOptions) {
+    // A visible, labelled field. A hidden one without a label is what the
+    // password auto-fill in onKeyboardEvent answers, which sent the saved
+    // password to the server as the user name; forcePrompt keeps it away.
     const options = {
-      name: 'username',
+      name: `login for ${this.initOptions.host}`,
       instructions: [''],
       prompts: [{
-        echo: false,
-        prompt: ''
+        echo: true,
+        prompt: 'login as'
       }]
     }
-    return this.onKeyboardEvent(options)
+    return this.onKeyboardEvent(options, undefined, undefined, true)
       .then(data => {
         const username = data ? data[0] : ''
         if (username) {
