@@ -33,6 +33,7 @@ import { themeMixin } from './mixins/term-theme.js'
 import { attachMixin } from './mixins/term-attach.js'
 import { socketMixin } from './mixins/term-socket.js'
 import { clearNeedsInteractiveInput } from './interactive-prompt-state.js'
+import { askInTerminal } from './terminal-login-prompt.js'
 import { configMixin } from './mixins/term-config.jsx'
 import { contextMenuMixin } from './mixins/term-context-menu.jsx'
 import { contentMixin } from './mixins/term-content.js'
@@ -278,6 +279,7 @@ class Term extends Component {
       ?.catch?.(error => console.error('renderer dispose failed', error))
     this.rendererLifecycle = null
     refs.remove(this.id)
+    this.loginPrompt?.cancel()
     // this tab id will never be connected again (reload mints a new one)
     clearNeedsInteractiveInput(this.props.tab.id)
     window.cancelAnimationFrame(this.timers.focusRefreshRaf)
@@ -343,6 +345,40 @@ class Term extends Component {
 
   getDomId () {
     return `term-${this.props.tab.id}`
+  }
+
+  /**
+   * Asks a session prompt in this terminal instead of a popup (setting
+   * `sshPromptPopup` off), one after the other. Typed keys go to the prompt
+   * only, see onData. Resolves like askInTerminal.
+   */
+  askLoginPrompt (prompt) {
+    const run = async () => {
+      if (!this.term || this.dropped?.has(prompt.id)) {
+        return null
+      }
+      this.loginPrompt = askInTerminal(this.term, prompt.options)
+      this.loginPrompt.id = prompt.id
+      this.setState({ loginPrompting: true })
+      this.term.focus()
+      const results = await this.loginPrompt.promise
+      this.loginPrompt = null
+      this.setState({ loginPrompting: false })
+      return results
+    }
+    this.loginPromptQueue = (this.loginPromptQueue || Promise.resolve())
+      .then(run, run)
+    return this.loginPromptQueue
+  }
+
+  // the session took the prompt back (attempt died, retry)
+  dropLoginPrompt (id) {
+    if (this.loginPrompt?.id === id) {
+      this.loginPrompt.cancel()
+    } else {
+      this.dropped = this.dropped || new Set()
+      this.dropped.add(id)
+    }
   }
 
   isActiveTerminal () {
@@ -411,7 +447,7 @@ class Term extends Component {
   }
 
   render () {
-    const { loading } = this.state
+    const { loading, loginPrompting } = this.state
     const { height, width, left, top, fullscreen } = this.props
     const { id } = this.props.tab
     const isActive = this.isActiveTerminal()
@@ -469,7 +505,8 @@ class Term extends Component {
       totalLines: this.state.totalLines,
       height
     }
-    const spin = loading ? <Spin className='loading-wrapper' spinning={loading} /> : null
+    // the spinner would hide a login prompt asked in the terminal
+    const spin = loading && !loginPrompting ? <Spin className='loading-wrapper' spinning={loading} /> : null
     return (
       <Dropdown {...dropdownProps}>
         <div

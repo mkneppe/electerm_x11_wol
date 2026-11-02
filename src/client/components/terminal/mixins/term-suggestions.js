@@ -164,6 +164,11 @@ export const suggestionsMixin = {
   },
 
   onData (d) {
+    // a login prompt asked in the terminal reads the keys itself; never record
+    // or suggest from them (they may be a password)
+    if (this.loginPrompt) {
+      return
+    }
     this.handleInputEvent(d)
     if (window.store.qmRecording) {
       window.store.recordQuickCommandInput(this.props.tab.id, d)

@@ -598,6 +598,10 @@ export default class SettingTerminal extends Component {
           // label differs from the config key
           this.renderToggle('remoteMonitorBarEnabled', 'pd2b', e('monitorBar'))
         }
+        {
+          // off: user name, password and host key are asked in the terminal
+          this.renderToggle('sshPromptPopup', 'pd2b', 'Ask SSH logins in popups (off: in the terminal)')
+        }
         <div className='pd1b'>{e('rightClickBehavior')}</div>
         <Select
           onChange={this.handleChangeRightClickBehavior}

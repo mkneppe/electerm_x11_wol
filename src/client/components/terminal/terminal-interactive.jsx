@@ -11,6 +11,7 @@ import {
   markNeedsInteractiveInput,
   clearNeedsInteractiveInput
 } from './interactive-prompt-state.js'
+import { refs } from '../common/ref.js'
 import { rememberTyped } from '../../common/credential-provider.jsx'
 
 // x11 warnings already shown, keyed by message text
@@ -25,6 +26,17 @@ function isLiveTab (tabId) {
   }
   const tabs = window.store?.tabs || []
   return tabs.some(t => t.id === tabId)
+}
+
+// With the setting `sshPromptPopup` off a prompt is asked in its tab's
+// terminal, like OpenSSH does. A tab without a terminal (sftp only) still
+// gets the popup.
+function promptTerminal (tabId) {
+  if (window.store?.config?.sshPromptPopup !== false || !tabId) {
+    return null
+  }
+  const term = refs.get('term-' + tabId)
+  return term?.term && term.askLoginPrompt ? term : null
 }
 
 export default function TermInteractive () {
@@ -108,7 +120,8 @@ export default function TermInteractive () {
   // The server takes a prompt back when the attempt that asked for it dies
   // (handshake timeout, dropped connection, internal retry). Drop it here too,
   // otherwise the dialog outlives its connection and blocks the window.
-  function dropPrompt (id) {
+  function dropPrompt (id, tabId) {
+    promptTerminal(tabId)?.dropLoginPrompt(id)
     if (currentIdRef.current === id) {
       processNext()
       return
@@ -123,6 +136,16 @@ export default function TermInteractive () {
       window.et.commonWs?.s({
         id: parsed.id,
         results: []
+      })
+      return
+    }
+    const term = promptTerminal(parsed.tabId)
+    if (term) {
+      term.askLoginPrompt(parsed).then(results => {
+        // null: the session took it back, nothing to answer
+        if (results) {
+          sendAnswer(parsed.tabId, { id: parsed.id, results }, parsed.options)
+        }
       })
       return
     }
@@ -145,7 +168,7 @@ export default function TermInteractive () {
       // must be tested first: the close action also contains this substring
       if (parsed.action === 'session-interactive-close') {
         markNeedsInteractiveInput(parsed.tabId)
-        dropPrompt(parsed.id)
+        dropPrompt(parsed.id, parsed.tabId)
         return
       }
       onPrompt(parsed)
@@ -173,19 +196,23 @@ export default function TermInteractive () {
     }
   }
 
-  function onSend (data) {
+  function sendAnswer (tabId, data, options) {
     // a typed password may be offered to a password manager widget once the
     // tab connected
-    rememberTyped(current?.tabId, current?.options, data.results)
+    rememberTyped(tabId, options, data.results)
     // An answer means the session can still be revived on its own; an empty
     // answer is the cancel button, and then no retry may re-ask on the user's
     // behalf (see interactive-prompt-state.js).
     if (Array.isArray(data.results) && data.results.length) {
-      clearNeedsInteractiveInput(current?.tabId)
+      clearNeedsInteractiveInput(tabId)
     } else {
-      markNeedsInteractiveInput(current?.tabId)
+      markNeedsInteractiveInput(tabId)
     }
     window.et.commonWs.s(data)
+  }
+
+  function onSend (data) {
+    sendAnswer(current?.tabId, data, current?.options)
   }
 
   const onClose = useCallback(() => {

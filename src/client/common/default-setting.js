@@ -88,6 +88,8 @@ export default {
   sshSftpSplitView: false,
   showCmdSuggestions: false,
   autoReconnectTerminal: false,
+  // off: ssh prompts (user name, password, host key) are asked in the terminal
+  sshPromptPopup: true,
   restoreTerminalSessionOnReload: false,
   startDirectoryLocal: '',
   allowMultiInstance: false,
