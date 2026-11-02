@@ -19,7 +19,8 @@ import {
   rendererTypes,
   regexHelpLink,
   terminalTypes,
-  toggleWikiMap
+  toggleWikiMap,
+  isWin
 } from '../../common/constants'
 import defaultSettings from '../../common/default-setting'
 import ShowItem from '../common/show-item'
@@ -597,6 +598,12 @@ export default class SettingTerminal extends Component {
         {
           // label differs from the config key
           this.renderToggle('remoteMonitorBarEnabled', 'pd2b', e('monitorBar'))
+        }
+        {
+          // windows only: one taskbar thumbnail per tab
+          isWin
+            ? this.renderToggle('taskbarTabs', 'pd2b', 'Show each tab in the Windows taskbar')
+            : null
         }
         <div className='pd1b'>{e('rightClickBehavior')}</div>
         <Select

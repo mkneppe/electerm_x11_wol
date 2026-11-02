@@ -19,6 +19,7 @@ const { listItermThemes } = require('./iterm-theme')
 const installSrc = require('./install-src')
 const { getConfig } = require('./get-config')
 const loadSshConfig = require('./ssh-config')
+const { setTaskbarTabs, snapshotTaskbarTab, pictureTaskbarTab } = require('./taskbar-tabs')
 const {
   listWidgets,
   runWidget,
@@ -240,6 +241,9 @@ function initIpc () {
     },
     setPassword,
     checkPassword,
+    setTaskbarTabs,
+    snapshotTaskbarTab,
+    pictureTaskbarTab,
     lookup,
     loadSshConfig,
     init,

@@ -88,6 +88,8 @@ export default {
   sshSftpSplitView: false,
   showCmdSuggestions: false,
   autoReconnectTerminal: false,
+  // windows: every tab as its own thumbnail in the taskbar
+  taskbarTabs: false,
   restoreTerminalSessionOnReload: false,
   startDirectoryLocal: '',
   allowMultiInstance: false,

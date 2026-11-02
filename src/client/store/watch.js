@@ -11,13 +11,127 @@ import {
   expandedKeysLsKey,
   resolutionsLsKey,
   localAddrBookmarkLsKey,
-  syncServerDataKey
+  syncServerDataKey,
+  statusMap,
+  isWin
 } from '../common/constants'
 import * as ls from '../common/safe-local-storage'
 import { debounce, isEmpty } from 'lodash-es'
 import deepCopy from 'json-deep-copy'
 import { refsStatic } from '../components/common/ref'
 import dataCompare from '../common/data-compare'
+import { tabPicture } from '../common/taskbar-picture'
+
+/**
+ * Windows: the tabs as thumbnails in the taskbar (setting `taskbarTabs`).
+ * The tab list goes to the main process on every change; the picture of a tab
+ * is taken once, a moment after it connected while it is the visible one, and
+ * again whenever the taskbar shows an outdated one: a snapshot when the tab is
+ * on screen, else drawn from the hidden tab (taskbar-picture.js).
+ */
+function taskbarTabs (store) {
+  const snapped = new Set()
+  const send = debounce((tabs, activeId) => {
+    window.pre.runGlobalAsync('setTaskbarTabs', tabs, activeId)
+  }, 300)
+  autoRun(() => {
+    const on = !!store.config.taskbarTabs
+    const tabs = on
+      ? store.getTabs().map(t => ({ id: t.id, title: t.title || createTitle(t) }))
+      : []
+    send(tabs, store.activeTabId)
+    if (!on) {
+      snapped.clear()
+    }
+    return tabs
+  }).start()
+  // The session area of tab `id`, in window pixels, when it is what the user
+  // sees right now: nothing over it (settings, dialogs), window not hidden.
+  // Otherwise null, and the picture waits.
+  const visibleRect = id => {
+    if (store.showModal || document.visibilityState !== 'visible') {
+      return null
+    }
+    const el = document.querySelector(`.session-${id}`)
+    const r = el?.getBoundingClientRect()
+    if (!r || !r.width || !r.height) {
+      return null
+    }
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    if (!hit || !el.contains(hit)) {
+      return null
+    }
+    const zoom = window.api?.getZoomFactor?.() || 1
+    return {
+      x: Math.round(r.left * zoom),
+      y: Math.round(r.top * zoom),
+      width: Math.round(r.width * zoom),
+      height: Math.round(r.height * zoom)
+    }
+  }
+  let timer = null
+  const trySnapshot = (id, tries) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      const tab = store.getTabs().find(t => t.id === id)
+      if (
+        !store.config.taskbarTabs ||
+        store.activeTabId !== id ||
+        !tab ||
+        tab.status !== statusMap.success ||
+        snapped.has(id)
+      ) {
+        return
+      }
+      const rect = visibleRect(id)
+      if (!rect) {
+        // covered or hidden: look again a bit later, the autoRun below also
+        // tries again when a modal closes
+        if (tries > 1) {
+          trySnapshot(id, tries - 1)
+        }
+        return
+      }
+      snapped.add(id)
+      window.pre.runGlobalAsync('snapshotTaskbarTab', id, rect)
+    }, 1500)
+  }
+  autoRun(() => {
+    const { activeTabId, showModal } = store
+    const tab = store.getTabs().find(t => t.id === activeTabId)
+    if (
+      store.config.taskbarTabs &&
+      tab &&
+      tab.status === statusMap.success &&
+      !showModal &&
+      !snapped.has(tab.id)
+    ) {
+      trySnapshot(tab.id, 20)
+    }
+    return [activeTabId, tab?.status, showModal, store.config.taskbarTabs]
+  }).start()
+  // the taskbar wants a current picture of tab `id`
+  window.pre.ipcOnEvent('taskbar-tab-picture', async (e, id) => {
+    const tab = store.getTabs().find(t => t.id === id)
+    if (!store.config.taskbarTabs || !tab) {
+      return
+    }
+    const rect = visibleRect(id)
+    if (rect) {
+      window.pre.runGlobalAsync('snapshotTaskbarTab', id, rect)
+      return
+    }
+    const url = await tabPicture(tab)
+    window.pre.runGlobalAsync('pictureTaskbarTab', id, url)
+  })
+  // the window coming back (restored, other desktop) can uncover the tab
+  document.addEventListener('visibilitychange', () => {
+    const { activeTabId } = store
+    if (store.config.taskbarTabs && activeTabId && !snapped.has(activeTabId)) {
+      trySnapshot(activeTabId, 20)
+    }
+  })
+}
 
 export default store => {
   for (const name of dbNamesForWatch) {
@@ -148,6 +262,10 @@ export default store => {
     ls.setItemJSON(syncServerDataKey, store.syncServerStatus)
     return store.syncServerStatus
   }).start()
+
+  if (isWin) {
+    taskbarTabs(store)
+  }
 
   autoRun(() => {
     store.updateBatchInputSelectedTabIds()

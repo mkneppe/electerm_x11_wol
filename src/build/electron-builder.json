@@ -10,7 +10,8 @@
   ],
   "asar": true,
   "asarUnpack": [
-    "node_modules/node-pty/build/Release/**"
+    "node_modules/node-pty/build/Release/**",
+    "node_modules/koffi/build/**"
   ],
   "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
   "win": {

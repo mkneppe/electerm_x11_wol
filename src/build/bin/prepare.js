@@ -24,6 +24,8 @@ if (isWin) {
   delete pack.dependencies['node-bash']
 } else {
   delete pack.dependencies['node-powershell']
+  // only the Windows taskbar tab thumbnails use it (app/lib/taskbar-tabs.js)
+  delete pack.dependencies.koffi
 }
 
 echo('start pack prepare')
@@ -63,6 +65,19 @@ rm('-rf', 'work/app/node_modules/axios/dist/*.map')
 rm('-rf', 'work/app/node_modules/axios/dist/node/*.map')
 rm('-rf', 'work/app/node_modules/axios/index.d.cts')
 rm('-rf', 'work/app/node_modules/axios/lib')
+
+// koffi ships native builds for every platform: keep the Windows ones
+if (isWin) {
+  const koffiBuild = 'work/app/node_modules/koffi/build/koffi'
+  const { readdirSync, existsSync } = require('fs')
+  if (existsSync(koffiBuild)) {
+    for (const d of readdirSync(koffiBuild)) {
+      if (!d.startsWith('win32_')) {
+        rm('-rf', `${koffiBuild}/${d}`)
+      }
+    }
+  }
+}
 
 // Remove cpu-features after npm prune to prevent rebuild issues
 rm('-rf', 'node_modules/cpu-features')

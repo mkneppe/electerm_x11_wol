@@ -5,6 +5,7 @@
 const { dbAction } = require('./db')
 const log = require('../common/log')
 const globalState = require('./glob-state')
+const { disposeTaskbarTabs } = require('./taskbar-tabs')
 
 exports.getExitStatus = async () => {
   const res = await dbAction('data', 'findOne', {
@@ -52,6 +53,7 @@ exports.onClose = async function (e) {
   // })
   // log.debug('session saved')
   clearTimeout(globalState.get('timer'))
+  disposeTaskbarTabs()
   globalState.set('win', null)
   const app = globalState.get('app')
   app.quit && app.quit()

@@ -71,6 +71,12 @@ export default auto(function Index (props) {
     ipcOnEvent('new-ssh', store.onNewSsh)
     ipcOnEvent('add-tab-from-command-line', store.addTabFromCommandLine)
     ipcOnEvent('open-tab', (e, parsed) => store.ipcOpenTab(parsed))
+    // a tab picked or closed in its Windows taskbar thumbnail
+    ipcOnEvent('taskbar-focus-tab', (e, id) => {
+      const tab = store.getTabs().find(t => t.id === id)
+      tab && store.clickTab(tab.id, tab.batch)
+    })
+    ipcOnEvent('taskbar-close-tab', (e, id) => store.delTab(id))
     ipcOnEvent('openSettings', store.openSetting)
     ipcOnEvent('selectall', store.selectall)
     ipcOnEvent('focused', store.focus)
