@@ -34,6 +34,7 @@ const csFailMsg = 'no matching C->S cipher'
 // ssh2 fails the shell request when the server refuses agent forwarding
 // (AllowAgentForwarding no); OpenSSH and SecureCRT only warn, see openShell()
 const agentFwdFailMsg = 'Unable to request agent forwarding'
+const x11FailMsg = 'Unable to request X11'
 // ssh2 handshake failures that mean "no algorithm in common". algAlt() is a
 // strict superset of algDefault(), so retrying with it can only add options,
 // never remove them. Old devices/routers often need it for the cipher, MAC or
@@ -808,6 +809,16 @@ class TerminalSshBase extends TerminalBase {
               log.log('server refused agent forwarding, retrying without it')
               this.conn.config.allowAgentFwd = false
               return this.openShell(shellWindow, shellOpts)
+                .then(resolve)
+                .catch(reject)
+            }
+            if (err.message === x11FailMsg && shellOpts?.x11) {
+              // the same for X11 forwarding (X11Forwarding no, no xauth on
+              // the server): connect without it, and say so
+              log.log('server refused x11 forwarding, retrying without it')
+              this.x11Notified = false
+              this.notifyX11('The server refused X11 forwarding, so this session has no X11. Check "X11Forwarding yes" in its sshd_config and that xauth is installed there.')
+              return this.openShell(shellWindow, { ...shellOpts, x11: undefined })
                 .then(resolve)
                 .catch(reject)
             }
