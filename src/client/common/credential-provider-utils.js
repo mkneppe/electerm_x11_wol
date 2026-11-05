@@ -16,6 +16,23 @@ export function providerOf (widgets) {
   return { id: w.id, name: w.info.name || w.id, get, save: save || '' }
 }
 
+/**
+ * What to save once a session connected: the typed login, else for a new
+ * entry the user name alone (the session needed no password: key, agent),
+ * so the next connect finds that entry instead of asking again.
+ * @param {{username?, password?}} [typed] typed at the prompts / RDP form
+ * @param {object} tab
+ * @param {boolean} newEntry the user chose "New entry"
+ * @return {{login: string, password: string}|null}
+ */
+export function loginToSave (typed, tab, newEntry) {
+  const login = typed?.username || tab.username || ''
+  if (typed?.password) {
+    return { login, password: typed.password }
+  }
+  return newEntry && login ? { login, password: '' } : null
+}
+
 // what a provider gets to find the entry, never a password
 export function credentialTarget (tab) {
   return {

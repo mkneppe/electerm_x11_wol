@@ -174,6 +174,9 @@ export const socketMixin = {
       this.credentials = await credentialsFromProvider(tab)
       if (this.credentials?.password) {
         Object.assign(opts, pick(this.credentials, ['username', 'password']))
+      } else if (this.credentials?.username) {
+        // an entry without password: key login
+        opts.username = this.credentials.username
       }
     }
     const isAutoReconnect = !!(tab.autoReConnect && this.props.config.autoReconnectTerminal)
@@ -218,10 +221,12 @@ export const socketMixin = {
     }
     this.port = r.port
     this.setStatus(statusMap.success)
-    if (this.credentials?.newEntry) {
+    const c = this.credentials
+    if (c?.newEntry) {
       saveToProvider(tab)
-    } else if (!this.credentials) {
-      offerSaveToProvider(tab)
+    } else if (!c || (c.uuid && !c.password)) {
+      // an entry without password, yet one was typed: offer to add it there
+      offerSaveToProvider(tab, undefined, c?.uuid)
     }
     refs.get('sftp-' + id)?.initData(id, r.port)
     term.pid = id

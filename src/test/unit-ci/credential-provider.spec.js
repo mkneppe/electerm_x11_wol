@@ -13,6 +13,7 @@ let userWidget
 let providerOf
 let credentialTarget
 let promptAnswer
+let loginToSave
 
 function writeWidget (id, electerm, main) {
   const dir = path.join(tmp, 'widgets', id)
@@ -35,6 +36,7 @@ before(async () => {
   providerOf = utils.providerOf
   credentialTarget = utils.credentialTarget
   promptAnswer = utils.promptAnswer
+  loginToSave = utils.loginToSave
 })
 
 after(() => {
@@ -86,5 +88,17 @@ describe('credential provider widgets', () => {
     assert.equal(promptAnswer(ask('', 'Verification code:', false), ['123']), null)
     assert.equal(promptAnswer({ mode: 'confirm', prompts: [{ prompt: 'Password' }] }, ['x']), null)
     assert.equal(promptAnswer(ask('', 'Password:', false), ['']), null)
+  })
+
+  test('to save: the typed login, for a new entry of a key login the user name alone', () => {
+    const tab = { username: 'alice' }
+    assert.deepEqual(loginToSave({ password: 'pw' }, tab, false), { login: 'alice', password: 'pw' })
+    assert.deepEqual(loginToSave({ username: 'bob', password: 'pw' }, tab, true), { login: 'bob', password: 'pw' })
+    // no password asked: an entry without one, so the next connect finds it
+    assert.deepEqual(loginToSave(undefined, tab, true), { login: 'alice', password: '' })
+    assert.deepEqual(loginToSave({ username: 'bob' }, {}, true), { login: 'bob', password: '' })
+    // only offered with a typed password; nothing to save without any name
+    assert.equal(loginToSave(undefined, tab, false), null)
+    assert.equal(loginToSave(undefined, {}, true), null)
   })
 })

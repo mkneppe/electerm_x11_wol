@@ -11,8 +11,10 @@
  *     { pick: 'choose', url, entries, alternatives } let the user choose
  *       (entries / alternatives: [{ uuid, name, login, password }])
  *     { pick: null }                               nothing, ask as usual
- * - save({ target, login, password }) (optional) stores a login after it
- *   worked: for "New entry" right away, else after the user agreed. Answers
+ * - save({ target, login, password, uuid }) (optional) stores a login after
+ *   it worked: for "New entry" right away (without a password when none was
+ *   needed: key login), else after the user agreed; uuid: update that entry
+ *   (one without a password, when a password was needed after all). Answers
  *   { ok, url }.
  *
  * The first installed widget with a provider is used. A bookmark with
@@ -27,7 +29,8 @@ import { notification } from '../components/common/notification'
 import {
   providerOf,
   credentialTarget,
-  promptAnswer
+  promptAnswer,
+  loginToSave
 } from './credential-provider-utils.js'
 
 let cached = null
@@ -151,7 +154,7 @@ function askRetry (provider, error) {
 
 /**
  * What the provider has for `tab`:
- * - { username, password }: from an entry
+ * - { username, password, uuid }: from an entry (password '': key login)
  * - { newEntry: true }: the user wants a new entry, see saveToProvider
  * - { declined: true }: the user goes on without it, or the bookmark ignores it
  * - null: no provider
@@ -196,7 +199,8 @@ export async function credentialsFromProvider (tab) {
   // fills in for an entry without one
   return {
     username: entry.login || tab.username,
-    password: entry.password
+    password: entry.password || '',
+    uuid: entry.uuid
   }
 }
 
@@ -219,24 +223,23 @@ export function rememberTyped (tabId, options, results) {
   }
 }
 
-// the typed credentials of `tab`, null without a password
-function typedFor (tab, creds) {
+// what to save for `tab`, see loginToSave
+function typedFor (tab, creds, newEntry) {
   const t = creds || typed.get(tab.id)
   typed.delete(tab.id)
-  if (!cached?.save || !t?.password) {
-    return null
-  }
-  return { login: t.username || tab.username || '', password: t.password }
+  return cached?.save ? loginToSave(t, tab, newEntry) : null
 }
 
-async function save (provider, tab, { login, password }) {
+async function save (provider, tab, { login, password }, uuid) {
   const res = await call(provider, provider.save, {
     target: credentialTarget(tab),
     login,
-    password
+    password,
+    uuid
   }).catch(e => ({ error: e.message }))
   if (res?.ok) {
-    notification.success({ message: provider.name, description: `Saved${res.url ? ' for ' + res.url : ''}`, duration: 4 })
+    const what = password ? 'Saved' : 'Saved without password (none was needed)'
+    notification.success({ message: provider.name, description: `${what}${res.url ? ' for ' + res.url : ''}`, duration: 4 })
   } else {
     notification.error({ message: provider.name, description: res?.error || 'Not saved' })
   }
@@ -244,13 +247,13 @@ async function save (provider, tab, { login, password }) {
 
 /**
  * The tab connected after the user asked for a new entry: save the typed
- * user name and password.
+ * user name and password, or only the user name when no password was asked.
  * @param {object} tab
  * @param {object} [creds] credentials typed elsewhere (RDP form)
  */
 export function saveToProvider (tab, creds) {
   const provider = cached
-  const t = typedFor(tab, creds)
+  const t = typedFor(tab, creds, true)
   if (t) {
     save(provider, tab, t)
   }
@@ -260,8 +263,9 @@ export function saveToProvider (tab, creds) {
  * The tab connected with a typed password: offer to save it.
  * @param {object} tab
  * @param {object} [creds] credentials typed elsewhere (RDP form)
+ * @param {string} [uuid] the entry without a password to update
  */
-export function offerSaveToProvider (tab, creds) {
+export function offerSaveToProvider (tab, creds, uuid) {
   const provider = cached
   const t = typedFor(tab, creds)
   if (!t || tab.credentialProviderIgnore) {
@@ -271,7 +275,7 @@ export function offerSaveToProvider (tab, creds) {
   const key = 'credential-provider-save-' + tab.id
   const onSave = () => {
     notification.destroy(key)
-    save(provider, tab, t)
+    save(provider, tab, t, uuid)
   }
   notification.info({
     key,
