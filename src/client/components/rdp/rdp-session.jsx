@@ -14,12 +14,14 @@ import {
   DownloadOutlined
 } from '@ant-design/icons'
 import {
+  Button,
   Select,
   Tooltip
 } from 'antd'
 import * as ls from '../../common/safe-local-storage'
 import { isMac } from '../../common/platform'
 import { getScancode } from './code-scan'
+import { staleModifiers, isLockKey, lockState, focusLost, keyLabel } from './held-keys'
 import { getRDCleanPathDetails, rdCleanPathText, negotiationText } from './rdp-errors'
 import { logonSettings } from './rdp-logon'
 import resolutions from './resolutions'
@@ -107,6 +109,7 @@ export default class RdpSession extends PureComponent {
   cleanup = () => {
     // a closed/reloaded tab must not leave the app menu ignoring its shortcuts
     this.setMenuShortcutsIgnored(false)
+    notification.destroy(this.keptNoticeKey())
     if (this.session) {
       try {
         this.session.shutdown()
@@ -474,33 +477,13 @@ export default class RdpSession extends PureComponent {
     canvas.addEventListener('keydown', (e) => {
       e.preventDefault()
       e.stopPropagation()
-      if (!this.session) return
-      const scancode = this.getScancode(e.code)
-      if (scancode === null) return
-      try {
-        const event = window.ironRdp.DeviceEvent.keyPressed(scancode)
-        const tx = new window.ironRdp.InputTransaction()
-        tx.addEvent(event)
-        this.session.applyInputs(tx)
-      } catch (err) {
-        this.log(`Key press error: ${err.message}`, 'error')
-      }
+      this.sendKey(e, true)
     })
 
     canvas.addEventListener('keyup', (e) => {
       e.preventDefault()
       e.stopPropagation()
-      if (!this.session) return
-      const scancode = this.getScancode(e.code)
-      if (scancode === null) return
-      try {
-        const event = window.ironRdp.DeviceEvent.keyReleased(scancode)
-        const tx = new window.ironRdp.InputTransaction()
-        tx.addEvent(event)
-        this.session.applyInputs(tx)
-      } catch (err) {
-        this.log(`Key release error: ${err.message}`, 'error')
-      }
+      this.sendKey(e, false)
     })
 
     // Coalesce mouse moves to at most one per animation frame. A high polling
@@ -557,6 +540,7 @@ export default class RdpSession extends PureComponent {
       try {
         const event = window.ironRdp.DeviceEvent.mouseButtonPressed(e.button)
         const tx = new window.ironRdp.InputTransaction()
+        this.fixHeldKeys(e, tx)
         tx.addEvent(event)
         this.session.applyInputs(tx)
       } catch (err) {
@@ -615,6 +599,139 @@ export default class RdpSession extends PureComponent {
 
     canvas.addEventListener('blur', () => {
       this.syncMenuShortcuts()
+      this.releaseKeys()
+    })
+  }
+
+  // DOM code sent as pressed -> since when, see held-keys.js
+  heldKeys = new Map()
+  // held when focus left, kept pressed on the remote on purpose
+  keptKeys = new Set()
+  // lock keys as last sent, a string of scroll, num, caps
+  sentLocks = ''
+
+  /**
+   * Before an input: release the modifiers `e` says are up, and send the
+   * local lock keys when they differ from the remote's
+   * @param {KeyboardEvent|MouseEvent} e
+   * @param {object} tx the InputTransaction about to be sent
+   */
+  fixHeldKeys = (e, tx) => {
+    for (const code of staleModifiers(this.heldKeys, e, this.keptKeys)) {
+      this.heldKeys.delete(code)
+      const sc = this.getScancode(code)
+      if (sc !== null) {
+        tx.addEvent(window.ironRdp.DeviceEvent.keyReleased(sc))
+      }
+    }
+    // a lock key's own event: the remote toggles with it
+    if (isLockKey(e.code)) {
+      return
+    }
+    const locks = lockState(e)
+    const key = locks.join()
+    if (key !== this.sentLocks) {
+      this.sentLocks = key
+      this.session.synchronizeLockKeys(...locks, false)
+    }
+  }
+
+  sendKey = (e, pressed) => {
+    if (!this.session) return
+    const scancode = this.getScancode(e.code)
+    try {
+      const tx = new window.ironRdp.InputTransaction()
+      this.fixHeldKeys(e, tx)
+      if (scancode !== null) {
+        if (pressed) {
+          // a kept key pressed again here: its release here ends it
+          if (this.keptKeys.delete(e.code) || !this.heldKeys.has(e.code)) {
+            this.heldKeys.set(e.code, Date.now())
+          }
+          if (!this.keptKeys.size) {
+            notification.destroy(this.keptNoticeKey())
+          }
+        } else {
+          this.heldKeys.delete(e.code)
+        }
+        const { keyPressed, keyReleased } = window.ironRdp.DeviceEvent
+        tx.addEvent((pressed ? keyPressed : keyReleased)(scancode))
+      }
+      this.session.applyInputs(tx)
+    } catch (err) {
+      this.log(`Key ${pressed ? 'press' : 'release'} error: ${err.message}`, 'error')
+    }
+  }
+
+  // send the release of `codes`
+  releaseCodes = (codes) => {
+    const tx = new window.ironRdp.InputTransaction()
+    for (const code of codes) {
+      this.heldKeys.delete(code)
+      this.keptKeys.delete(code)
+      const sc = this.getScancode(code)
+      if (sc !== null) {
+        tx.addEvent(window.ironRdp.DeviceEvent.keyReleased(sc))
+      }
+    }
+    this.session?.applyInputs(tx)
+  }
+
+  keptNoticeKey = () => `rdp-kept-keys-${this.props.tab.id}`
+
+  // focus left the canvas: its key releases go elsewhere. A key held for a
+  // while may be held on purpose: it stays pressed until the user says
+  releaseKeys = () => {
+    // the lock keys may change meanwhile
+    this.sentLocks = ''
+    if (!this.session) {
+      this.heldKeys.clear()
+      this.keptKeys.clear()
+      return
+    }
+    const { release, ask } = focusLost(this.heldKeys, this.keptKeys, Date.now())
+    try {
+      if (!ask.length && !this.keptKeys.size) {
+        // also mouse buttons
+        this.heldKeys.clear()
+        this.session.releaseAllInputs()
+        return
+      }
+      this.releaseCodes(release)
+    } catch (err) {
+      this.log(`Key release error: ${err.message}`, 'error')
+    }
+    if (ask.length) {
+      ask.forEach(code => this.keptKeys.add(code))
+      this.askKeepKeys()
+    }
+  }
+
+  askKeepKeys = () => {
+    const key = this.keptNoticeKey()
+    const codes = [...this.keptKeys]
+    const names = [...new Set(codes.map(keyLabel))].join(' + ')
+    const release = () => {
+      notification.destroy(key)
+      try {
+        this.releaseCodes([...this.keptKeys])
+      } catch (err) {
+        this.log(`Key release error: ${err.message}`, 'error')
+      }
+    }
+    notification.info({
+      key,
+      message: this.props.tab.title || this.props.tab.host,
+      description: (
+        <div>
+          <div className='pd1b'>
+            {names} {codes.length > 1 ? 'were' : 'was'} held down when the focus left the remote desktop. Keep {codes.length > 1 ? 'them' : 'it'} pressed there until you press and release {codes.length > 1 ? 'them' : 'it'} here again?
+          </div>
+          <Button size='small' className='mg1r' onClick={() => notification.destroy(key)}>Keep pressed</Button>
+          <Button type='primary' size='small' onClick={release}>Release</Button>
+        </div>
+      ),
+      duration: 0
     })
   }
 
